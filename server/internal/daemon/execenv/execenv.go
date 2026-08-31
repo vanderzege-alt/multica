@@ -736,6 +736,14 @@ func Prepare(params PrepareParams, logger *slog.Logger) (*Environment, error) {
 		env.OpenclawIncludeRoot = result.IncludeRoot
 	}
 
+	// Governance CLI shim: workDir/.multica/bin/multica forwards to multica-governed
+	// when multica-org-governance is checked out. Non-fatal if install fails.
+	if bin, err := os.Executable(); err == nil {
+		if err := InstallGovernanceCLIShim(workDir, bin); err != nil && logger != nil {
+			logger.Warn("execenv: governance CLI shim not installed", "work_dir", workDir, "error", err)
+		}
+	}
+
 	logger.Info("execenv: prepared env", "root", envRoot, "repos_available", len(params.Task.Repos))
 	prepareSucceeded = true
 	lockClaimed = false // ownership of any lock passes to the Environment

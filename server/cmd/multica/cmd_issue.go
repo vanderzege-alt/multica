@@ -2011,6 +2011,9 @@ func runIssueCommentAdd(cmd *cobra.Command, args []string) error {
 		"Deliver the file itself with `multica issue comment add <issue-id> --attachment <path>` (repeatable) and drop the link."); err != nil {
 		return err
 	}
+	if err := cli.RunPreCommentHook(content); err != nil {
+		return err
+	}
 
 	client, err := newAPIClient(cmd)
 	if err != nil {

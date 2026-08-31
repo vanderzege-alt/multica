@@ -334,6 +334,9 @@ func runRepoRemove(cmd *cobra.Command, args []string) error {
 
 func runRepoCheckout(cmd *cobra.Command, args []string) error {
 	repoURL := args[0]
+	if err := cli.RunPreRepoCheckoutHook(repoURL); err != nil {
+		return err
+	}
 
 	daemonPort := os.Getenv("MULTICA_DAEMON_PORT")
 	if daemonPort == "" {

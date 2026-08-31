@@ -7390,13 +7390,17 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		}
 	}
 	// Ensure the multica CLI is on PATH inside the agent's environment.
-	// Some runtimes (e.g. Codex) run in an isolated sandbox that may not
-	// inherit the daemon's PATH. Prepend the directory of the running
-	// multica binary so that `multica` commands in the agent always resolve.
-	if selfBin, err := resolveSelfExecutable(); err == nil {
-		binDir := filepath.Dir(selfBin)
-		agentEnv["PATH"] = binDir + string(os.PathListSeparator) + os.Getenv("PATH")
+	// Governance shim (workDir/.multica/bin/multica) must precede the real
+	// binary so agents always hit mechanical gates when governance is present.
+	pathParts := []string{}
+	if shimDir := execenv.GovernanceShimBinDir(env.WorkDir); shimDir != "" {
+		pathParts = append(pathParts, shimDir)
 	}
+	if selfBin, err := resolveSelfExecutable(); err == nil {
+		pathParts = append(pathParts, filepath.Dir(selfBin))
+	}
+	pathParts = append(pathParts, os.Getenv("PATH"))
+	agentEnv["PATH"] = strings.Join(pathParts, string(os.PathListSeparator))
 	// Point Codex to the per-task CODEX_HOME so it discovers skills natively
 	// without polluting the system ~/.codex/skills/.
 	if env.CodexHome != "" {

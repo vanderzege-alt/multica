@@ -145,3 +145,17 @@ func TestRunPreIssueCreate_UnconfiguredSkips(t *testing.T) {
 		t.Fatalf("unconfigured hook should skip: %v", err)
 	}
 }
+
+func TestRunPreIssueCreate_EmptyArgsFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	hook := writeHook(t, dir, "hook.sh", "#!/usr/bin/env bash\nexit 0\n")
+
+	err := RunPreIssueCreate(context.Background(), WorkspaceHooks{PreIssueCreate: hook, Timeout: time.Second}, nil, nil)
+	var failed *HookFailedError
+	if !errors.As(err, &failed) {
+		t.Fatalf("expected HookFailedError, got %T: %v", err, err)
+	}
+	if !strings.Contains(failed.Error(), "create arguments are required") {
+		t.Fatalf("error = %v", failed)
+	}
+}

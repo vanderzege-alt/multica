@@ -176,6 +176,19 @@ const validIssueDescription = `## Acceptance Criteria
 - [ ] DoD-1: Tests pass.
 `
 
+func governanceMutationHookPath(t *testing.T) string {
+	t.Helper()
+	hook := filepath.Join("testdata", "governance", "scripts", "pre-issue-create")
+	if _, err := os.Stat(hook); err != nil {
+		t.Fatalf("governance mutation hook fixture missing at %s: %v", hook, err)
+	}
+	abs, err := filepath.Abs(hook)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}
+
 func TestCreateIssue_GovernancePreIssueCreateAllowAndDeny(t *testing.T) {
 	if testHandler == nil {
 		t.Skip("database not available")
@@ -230,28 +243,26 @@ func TestCreateIssue_GovernancePreIssueCreateGuardMutations(t *testing.T) {
 	governanceTestMu.Lock()
 	defer governanceTestMu.Unlock()
 
-	guardHook := filepath.Join("..", "..", "..", "..", "multica-org-governance", "scripts", "pre-issue-create")
-	if _, err := os.Stat(guardHook); err != nil {
-		t.Skipf("multica-org-governance pre-issue-create hook not available: %v", err)
-	}
-	absGuardHook, err := filepath.Abs(guardHook)
-	if err != nil {
-		t.Fatal(err)
-	}
+	guardHook := governanceMutationHookPath(t)
 
 	env := setupGovernanceTestWorkspace(t)
-	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_issue_create": absGuardHook}, nil)
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_issue_create": guardHook}, nil)
 
 	t.Run("invalid title blocked", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
-			"title":       "bad title without prefix",
-			"description": validIssueDescription,
-			"status":      "backlog",
+			"title":         "bad title without prefix",
+			"description":   validIssueDescription,
+			"status":        "todo",
+			"assignee_type": "member",
+			"assignee_id":   testUserID,
 		})
 		testHandler.CreateIssue(w, r)
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "Taxonomy") && !strings.Contains(w.Body.String(), "taxonomy") {
+			t.Fatalf("expected taxonomy gate message, got %s", w.Body.String())
 		}
 	})
 

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# pre-issue-create hook — RETRO title lint + orphan/unassigned guards.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+RETRO_CREATE="$REPO_ROOT/scripts/retro/retro-pipeline-on-create.sh"
+GUARD="$REPO_ROOT/scripts/guard-issue-create.sh"
+
+if [[ -x "$RETRO_CREATE" ]]; then
+  "$RETRO_CREATE" "$@" || exit 1
+fi
+
+exec "$GUARD" "$@"

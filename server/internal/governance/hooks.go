@@ -1,6 +1,6 @@
 // Package governance runs workspace-configured shell hooks before issue
-// comment and status mutations. Hook failure is fail-safe default-deny per
-// multica-org-governance ORGANIZATION.md §5.8.4.
+// create, comment, and status mutations. Hook failure is fail-safe
+// default-deny per multica-org-governance ORGANIZATION.md §5.8.4.
 package governance
 
 import (
@@ -18,8 +18,9 @@ import (
 
 const (
 	defaultHookTimeout = 30 * time.Second
-	defaultPreComment  = "scripts/pre-comment"
-	defaultPreStatus   = "scripts/pre-status"
+	defaultPreComment      = "scripts/pre-comment"
+	defaultPreStatus       = "scripts/pre-status"
+	defaultPreIssueCreate  = "scripts/pre-issue-create"
 )
 
 // Config carries server-level governance defaults (from deployment env).
@@ -30,9 +31,10 @@ type Config struct {
 
 // WorkspaceHooks is the resolved hook contract for one workspace.
 type WorkspaceHooks struct {
-	PreComment string
-	PreStatus  string
-	Timeout    time.Duration
+	PreComment     string
+	PreStatus      string
+	PreIssueCreate string
+	Timeout        time.Duration
 }
 
 // HookDeniedError is returned when a hook exits non-zero. Stderr is surfaced
@@ -81,8 +83,9 @@ func ParseWorkspaceHooks(settingsJSON []byte, server Config) WorkspaceHooks {
 
 	var gov struct {
 		Hooks struct {
-			PreComment string `json:"pre_comment"`
-			PreStatus  string `json:"pre_status"`
+			PreComment     string `json:"pre_comment"`
+			PreStatus      string `json:"pre_status"`
+			PreIssueCreate string `json:"pre_issue_create"`
 		} `json:"hooks"`
 		TimeoutSeconds *int `json:"timeout_seconds"`
 	}
@@ -95,6 +98,7 @@ func ParseWorkspaceHooks(settingsJSON []byte, server Config) WorkspaceHooks {
 
 	hooks.PreComment = resolveHookPath(gov.Hooks.PreComment, server.Root, defaultPreComment)
 	hooks.PreStatus = resolveHookPath(gov.Hooks.PreStatus, server.Root, defaultPreStatus)
+	hooks.PreIssueCreate = resolveHookPath(gov.Hooks.PreIssueCreate, server.Root, defaultPreIssueCreate)
 	return hooks
 }
 
@@ -133,6 +137,18 @@ func RunPreStatus(ctx context.Context, ws WorkspaceHooks, env map[string]string,
 		return nil
 	}
 	return runHook(ctx, "pre_status", ws.PreStatus, ws.Timeout, env, args)
+}
+
+// RunPreIssueCreate executes the workspace pre-issue-create hook when configured.
+// Args mirror multica issue create flags (guard-issue-create stdin contract).
+func RunPreIssueCreate(ctx context.Context, ws WorkspaceHooks, env map[string]string, args []string) error {
+	if ws.PreIssueCreate == "" {
+		return nil
+	}
+	if len(args) == 0 {
+		return &HookFailedError{Hook: "pre_issue_create", Err: errors.New("create arguments are required")}
+	}
+	return runHook(ctx, "pre_issue_create", ws.PreIssueCreate, ws.Timeout, env, args)
 }
 
 func runHook(ctx context.Context, name, script string, timeout time.Duration, env map[string]string, args []string) error {

@@ -168,3 +168,132 @@ func TestUpdateIssue_GovernancePreStatusDeny(t *testing.T) {
 		t.Fatalf("expected hook stderr in response, got %s", w.Body.String())
 	}
 }
+
+const validIssueDescription = `## Acceptance Criteria
+- [ ] AC-1: Implement the change.
+
+## Definition of Done
+- [ ] DoD-1: Tests pass.
+`
+
+func governanceMutationHookPath(t *testing.T) string {
+	t.Helper()
+	hook := filepath.Join("testdata", "governance", "scripts", "pre-issue-create")
+	if _, err := os.Stat(hook); err != nil {
+		t.Fatalf("governance mutation hook fixture missing at %s: %v", hook, err)
+	}
+	abs, err := filepath.Abs(hook)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}
+
+func TestCreateIssue_GovernancePreIssueCreateAllowAndDeny(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	governanceTestMu.Lock()
+	defer governanceTestMu.Unlock()
+
+	env := setupGovernanceTestWorkspace(t)
+
+	dir := t.TempDir()
+	allowHook := filepath.Join(dir, "allow-create.sh")
+	if err := os.WriteFile(allowHook, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	denyHook := filepath.Join(dir, "deny-create.sh")
+	if err := os.WriteFile(denyHook, []byte("#!/usr/bin/env bash\necho governance gate blocked issue create >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_issue_create": allowHook}, nil)
+	w := httptest.NewRecorder()
+	r := newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
+		"title":       "impl(gov): governance pre-issue-create allow",
+		"description": validIssueDescription,
+		"status":      "backlog",
+	})
+	testHandler.CreateIssue(w, r)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("allow hook: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_issue_create": denyHook}, nil)
+	w = httptest.NewRecorder()
+	r = newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
+		"title":       "impl(gov): governance pre-issue-create deny",
+		"description": validIssueDescription,
+		"status":      "backlog",
+	})
+	testHandler.CreateIssue(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("deny hook: expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "governance gate blocked issue create") {
+		t.Fatalf("expected hook stderr in response, got %s", w.Body.String())
+	}
+}
+
+func TestCreateIssue_GovernancePreIssueCreateGuardMutations(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	governanceTestMu.Lock()
+	defer governanceTestMu.Unlock()
+
+	guardHook := governanceMutationHookPath(t)
+
+	env := setupGovernanceTestWorkspace(t)
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_issue_create": guardHook}, nil)
+
+	t.Run("invalid title blocked", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
+			"title":         "bad title without prefix",
+			"description":   validIssueDescription,
+			"status":        "todo",
+			"assignee_type": "member",
+			"assignee_id":   testUserID,
+		})
+		testHandler.CreateIssue(w, r)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "Taxonomy") && !strings.Contains(w.Body.String(), "taxonomy") {
+			t.Fatalf("expected taxonomy gate message, got %s", w.Body.String())
+		}
+	})
+
+	t.Run("missing DoD blocked", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
+			"title": "impl(gov): missing dod",
+			"description": `## Acceptance Criteria
+- [ ] AC-1: Only AC present.
+`,
+			"status": "backlog",
+		})
+		testHandler.CreateIssue(w, r)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "Definition of Done") {
+			t.Fatalf("expected DoD gate message, got %s", w.Body.String())
+		}
+	})
+
+	t.Run("valid issue passes", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := newRequestForWorkspace(env.workspaceID, "POST", "/api/issues", map[string]any{
+			"title":       "impl(gov): valid taxonomy create",
+			"description": validIssueDescription,
+			"status":      "backlog",
+		})
+		testHandler.CreateIssue(w, r)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+}

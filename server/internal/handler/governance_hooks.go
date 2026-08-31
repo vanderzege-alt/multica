@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,4 +112,72 @@ func (h *Handler) invokePreStatusHook(ctx context.Context, workspaceID pgtype.UU
 		args = append(args, "--parent-id", uuidToString(issue.ParentIssueID))
 	}
 	return governance.RunPreStatus(ctx, hooks, env, args)
+}
+
+type preIssueCreateHookInput struct {
+	Title         string
+	Description   *string
+	Status        string
+	AssigneeType  pgtype.Text
+	AssigneeID    pgtype.UUID
+	ParentIssueID pgtype.UUID
+	Stage         *int32
+	CreatorType   string
+	CreatorID     string
+}
+
+func (h *Handler) invokePreIssueCreateHook(ctx context.Context, workspaceID pgtype.UUID, in preIssueCreateHookInput) error {
+	hooks, err := h.workspaceGovernanceHooks(ctx, workspaceID)
+	if err != nil {
+		return &governance.HookFailedError{Hook: "pre_issue_create", Err: err}
+	}
+	if hooks.PreIssueCreate == "" {
+		return nil
+	}
+
+	dir, err := os.MkdirTemp("", "multica-pre-issue-create-*")
+	if err != nil {
+		return &governance.HookFailedError{Hook: "pre_issue_create", Err: err}
+	}
+	defer os.RemoveAll(dir)
+
+	descriptionFile := filepath.Join(dir, "description.md")
+	desc := ""
+	if in.Description != nil {
+		desc = *in.Description
+	}
+	if err := os.WriteFile(descriptionFile, []byte(desc), 0o600); err != nil {
+		return &governance.HookFailedError{Hook: "pre_issue_create", Err: err}
+	}
+
+	args := []string{
+		"--title", in.Title,
+		"--description-file", descriptionFile,
+		"--status", in.Status,
+	}
+	if in.ParentIssueID.Valid {
+		args = append(args, "--parent", uuidToString(in.ParentIssueID))
+	}
+	if in.Stage != nil {
+		args = append(args, "--stage", strconv.FormatInt(int64(*in.Stage), 10))
+	}
+	if in.AssigneeID.Valid {
+		args = append(args, "--assignee-id", uuidToString(in.AssigneeID))
+	}
+
+	env := map[string]string{
+		"MULTICA_DESCRIPTION_FILE": descriptionFile,
+		"ISSUE_TITLE":              in.Title,
+		"ISSUE_STATUS":             in.Status,
+		"MULTICA_AUTHOR_ID":        in.CreatorID,
+		"AUTHOR_TYPE":              in.CreatorType,
+	}
+	if in.ParentIssueID.Valid {
+		env["PARENT_ISSUE_ID"] = uuidToString(in.ParentIssueID)
+	}
+	if in.Stage != nil {
+		env["ISSUE_STAGE"] = strconv.FormatInt(int64(*in.Stage), 10)
+	}
+
+	return governance.RunPreIssueCreate(ctx, hooks, env, args)
 }

@@ -3018,6 +3018,25 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 		return out
 	}
 
+	if err := h.invokePreIssueCreateHook(r.Context(), wsUUID, preIssueCreateHookInput{
+		Title:         req.Title,
+		Description:   req.Description,
+		Status:        status,
+		AssigneeType:  assigneeType,
+		AssigneeID:    assigneeID,
+		ParentIssueID: parentIssueID,
+		Stage:         req.Stage,
+		CreatorType:   creatorType,
+		CreatorID:     actualCreatorID,
+	}); err != nil {
+		if writeGovernanceHookError(w, err) {
+			return
+		}
+		slog.Warn("pre-issue-create hook failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+		writeError(w, http.StatusInternalServerError, "governance hook check failed")
+		return
+	}
+
 	res, err := h.IssueService.Create(r.Context(), service.IssueCreateParams{
 		WorkspaceID:    wsUUID,
 		Title:          req.Title,

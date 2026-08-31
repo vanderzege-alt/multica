@@ -90,9 +90,11 @@ func (h *Handler) invokePreStatusHook(ctx context.Context, workspaceID pgtype.UU
 		return nil
 	}
 
+	prevStatus := issue.Status
 	env := map[string]string{
 		"ISSUE_ID":          uuidToString(issue.ID),
 		"STATUS":            newStatus,
+		"PREV_STATUS":       prevStatus,
 		"MULTICA_AUTHOR_ID": authorID,
 		"ISSUE_TITLE":       issue.Title,
 		"AUTHOR_TYPE":       authorType,
@@ -104,6 +106,7 @@ func (h *Handler) invokePreStatusHook(ctx context.Context, workspaceID pgtype.UU
 	args := []string{
 		"--issue-id", uuidToString(issue.ID),
 		"--status", newStatus,
+		"--prev-status", prevStatus,
 		"--author-id", authorID,
 		"--issue-title", issue.Title,
 	}

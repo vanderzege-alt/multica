@@ -168,3 +168,69 @@ func TestUpdateIssue_GovernancePreStatusDeny(t *testing.T) {
 		t.Fatalf("expected hook stderr in response, got %s", w.Body.String())
 	}
 }
+
+func governanceRepoRoot(t *testing.T) string {
+	t.Helper()
+	if root := strings.TrimSpace(os.Getenv("MULTICA_GOVERNANCE_ROOT")); root != "" {
+		if _, err := os.Stat(filepath.Join(root, "scripts", "pre-status")); err == nil {
+			return root
+		}
+	}
+	for _, candidate := range []string{
+		filepath.Join("..", "multica-org-governance"),
+		filepath.Join("..", "..", "multica-org-governance"),
+		filepath.Join("..", "..", "..", "multica-org-governance"),
+	} {
+		if abs, err := filepath.Abs(candidate); err == nil {
+			if _, err := os.Stat(filepath.Join(abs, "scripts", "pre-status")); err == nil {
+				return abs
+			}
+		}
+	}
+	t.Skip("multica-org-governance not available (set MULTICA_GOVERNANCE_ROOT)")
+	return ""
+}
+
+func TestUpdateIssue_GovernanceSDLCGateBlocksS1Skip(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	governanceTestMu.Lock()
+	defer governanceTestMu.Unlock()
+
+	govRoot := governanceRepoRoot(t)
+	preStatus := filepath.Join(govRoot, "scripts", "pre-status")
+	s1NotReady := filepath.Join(govRoot, "tests", "fixtures", "sdlc-gate", "s1-not-ready-issue.json")
+
+	env := setupGovernanceTestWorkspace(t)
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_status": preStatus}, nil)
+
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "pre-status-sdlc.sh")
+	script := fmt.Sprintf(`#!/usr/bin/env bash
+set -euo pipefail
+export JSON_FILE=%q
+exec %q \
+  --issue-id "$ISSUE_ID" \
+  --status "$STATUS" \
+  --author-id "$MULTICA_AUTHOR_ID" \
+  --json-file "$JSON_FILE" \
+  ${PREV_STATUS:+--prev-status "$PREV_STATUS"}
+`, s1NotReady, filepath.Join(govRoot, "scripts", "guard-issue-status.sh"))
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	setWorkspaceGovernanceHooks(t, env.workspaceID, map[string]string{"pre_status": wrapper}, nil)
+
+	issueID := env.fixture.Issue(t, "governance sdlc S1 skip block", testutil.Cols{"status": "todo"})
+	w := httptest.NewRecorder()
+	r := withURLParam(newRequestForWorkspace(env.workspaceID, "PATCH", "/api/issues/"+issueID, map[string]any{"status": "in_progress"}), "id", issueID)
+	testHandler.UpdateIssue(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("sdlc gate: expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "S1") && !strings.Contains(body, "BLOCKED") {
+		t.Fatalf("expected S1/BUILD gate stderr in response, got %s", body)
+	}
+}

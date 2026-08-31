@@ -258,6 +258,11 @@ func runIssueMetadataSet(cmd *cobra.Command, args []string) error {
 	}
 	rawValue, _ := cmd.Flags().GetString("value")
 	forcedType, _ := cmd.Flags().GetString("type")
+	if key == "pr_url" {
+		if err := cli.ValidatePRURLMetadata(rawValue); err != nil {
+			return err
+		}
+	}
 	value, err := parseMetadataValue(rawValue, forcedType)
 	if err != nil {
 		return err

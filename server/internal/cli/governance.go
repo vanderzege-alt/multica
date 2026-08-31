@@ -174,3 +174,59 @@ func RunPreRepoCheckoutHook(repoURL string) error {
 	}
 	return RunGovernanceHook(hook, nil, "check-url", repoURL)
 }
+
+// RunPreStatusHook runs the configured pre-status governance gate before a
+// status transition reaches the API.
+func RunPreStatusHook(issueID, newStatus, issueTitle, parentIssueID string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	configPath, cfg, ok, err := FindGovernanceConfig(cwd)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	hookRel := cfg.Hooks.PreStatus
+	if hookRel == "" {
+		hookRel = filepath.Join(strings.TrimSpace(cfg.GovernanceRoot), "scripts", "pre-status")
+	}
+	hook, err := hookPathFromConfig(configPath, cfg, hookRel)
+	if err != nil {
+		return err
+	}
+
+	authorID := strings.TrimSpace(os.Getenv("MULTICA_AUTHOR_ID"))
+	if authorID == "" {
+		authorID = strings.TrimSpace(os.Getenv("MULTICA_AGENT_ID"))
+	}
+	if authorID == "" {
+		return fmt.Errorf("pre-status hook requires MULTICA_AUTHOR_ID or MULTICA_AGENT_ID")
+	}
+
+	args := []string{
+		"--issue-id", issueID,
+		"--status", newStatus,
+		"--author-id", authorID,
+	}
+	if issueTitle != "" {
+		args = append(args, "--issue-title", issueTitle)
+	}
+	if parentIssueID != "" {
+		args = append(args, "--parent-id", parentIssueID)
+	}
+	env := map[string]string{
+		"ISSUE_ID":          issueID,
+		"STATUS":            newStatus,
+		"MULTICA_AUTHOR_ID": authorID,
+	}
+	if issueTitle != "" {
+		env["ISSUE_TITLE"] = issueTitle
+	}
+	if parentIssueID != "" {
+		env["PARENT_ISSUE_ID"] = parentIssueID
+	}
+	return RunGovernanceHook(hook, env, args...)
+}

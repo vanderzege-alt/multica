@@ -7552,10 +7552,15 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	// Some runtimes (e.g. Codex) run in an isolated sandbox that may not
 	// inherit the daemon's PATH. Prepend the directory of the running
 	// multica binary so that `multica` commands in the agent always resolve.
+	pathPrefix := os.Getenv("PATH")
+	if env.GovernanceCLIPrependDir != "" {
+		pathPrefix = env.GovernanceCLIPrependDir + string(os.PathListSeparator) + pathPrefix
+	}
 	if selfBin, err := resolveSelfExecutable(); err == nil {
 		binDir := filepath.Dir(selfBin)
-		agentEnv["PATH"] = binDir + string(os.PathListSeparator) + os.Getenv("PATH")
+		pathPrefix = binDir + string(os.PathListSeparator) + pathPrefix
 	}
+	agentEnv["PATH"] = pathPrefix
 	// Point Codex to the per-task CODEX_HOME so it discovers skills natively
 	// without polluting the system ~/.codex/skills/.
 	if env.CodexHome != "" {

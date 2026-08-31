@@ -345,6 +345,9 @@ type Environment struct {
 	// `qwenpaw acp` so the QwenPaw agent discovers the skills natively.
 	// See qwenpaw_workspace.go.
 	QwenpawWorkspace string
+	// GovernanceCLIPrependDir is prepended to the agent PATH when
+	// .multica/governance.yaml defines cli_wrapper (workdir/bin/multica shim).
+	GovernanceCLIPrependDir string
 
 	logger *slog.Logger // for cleanup logging
 	// lockFile holds the env root's exclusive execution lock for as long as
@@ -602,6 +605,11 @@ func Prepare(params PrepareParams, logger *slog.Logger) (*Environment, error) {
 
 	if err := writeContextFiles(workDir, params.Provider, params.Task, manifest); err != nil {
 		return nil, fmt.Errorf("execenv: write context files: %w", err)
+	}
+	if govBin, err := PrepareWorkspaceGovernanceCLI(workDir); err != nil {
+		return nil, fmt.Errorf("execenv: prepare workspace governance cli: %w", err)
+	} else if govBin != "" {
+		env.GovernanceCLIPrependDir = govBin
 	}
 	if err := prepareOmpMcpConfig(workDir, params.Provider, params.McpConfig, manifest); err != nil {
 		return nil, fmt.Errorf("execenv: prepare omp mcp config: %w", err)

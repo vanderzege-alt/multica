@@ -177,7 +177,7 @@ func RunPreRepoCheckoutHook(repoURL string) error {
 
 // RunPreStatusHook runs the configured pre-status governance gate before a
 // status transition reaches the API.
-func RunPreStatusHook(issueID, newStatus, issueTitle, parentIssueID string) error {
+func RunPreStatusHook(issueID, newStatus, prevStatus, issueTitle, parentIssueID string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -209,6 +209,7 @@ func RunPreStatusHook(issueID, newStatus, issueTitle, parentIssueID string) erro
 	args := []string{
 		"--issue-id", issueID,
 		"--status", newStatus,
+		"--prev-status", prevStatus,
 		"--author-id", authorID,
 	}
 	if issueTitle != "" {
@@ -220,6 +221,7 @@ func RunPreStatusHook(issueID, newStatus, issueTitle, parentIssueID string) erro
 	env := map[string]string{
 		"ISSUE_ID":          issueID,
 		"STATUS":            newStatus,
+		"PREV_STATUS":       prevStatus,
 		"MULTICA_AUTHOR_ID": authorID,
 	}
 	if issueTitle != "" {

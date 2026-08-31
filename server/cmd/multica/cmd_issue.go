@@ -1519,7 +1519,8 @@ func runIssueStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load issue for governance pre-status: %w", err)
 	}
 	parentID := strVal(issue, "parent_issue_id")
-	if err := cli.RunPreStatusHook(issueRef.ID, status, strVal(issue, "title"), parentID); err != nil {
+	prevStatus := strVal(issue, "status")
+	if err := cli.RunPreStatusHook(issueRef.ID, status, prevStatus, strVal(issue, "title"), parentID); err != nil {
 		return err
 	}
 

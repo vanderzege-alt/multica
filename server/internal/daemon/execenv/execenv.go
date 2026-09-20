@@ -701,6 +701,15 @@ func Prepare(params PrepareParams, logger *slog.Logger) (*Environment, error) {
 		env.CursorDataDir = cursorDataDir
 	}
 
+	// Governance CLI shim: workDir/.multica/bin/multica forwards to multica-governed
+	// when multica-org-governance is checked out. Record it in the sidecar manifest
+	// so CleanupSidecars strips it before worktree Finalize commits the branch.
+	if bin, err := os.Executable(); err == nil {
+		if err := InstallGovernanceCLIShim(workDir, bin, manifest); err != nil && logger != nil {
+			logger.Warn("execenv: governance CLI shim not installed", "work_dir", workDir, "error", err)
+		}
+	}
+
 	if err := writeSidecarManifest(envRoot, manifest); err != nil {
 		// In place the manifest is the ONLY record of what we wrote into the
 		// user's own directory, so losing it strands the sidecar tree there
@@ -734,14 +743,6 @@ func Prepare(params PrepareParams, logger *slog.Logger) (*Environment, error) {
 		}
 		env.OpenclawConfigPath = result.ConfigPath
 		env.OpenclawIncludeRoot = result.IncludeRoot
-	}
-
-	// Governance CLI shim: workDir/.multica/bin/multica forwards to multica-governed
-	// when multica-org-governance is checked out. Non-fatal if install fails.
-	if bin, err := os.Executable(); err == nil {
-		if err := InstallGovernanceCLIShim(workDir, bin); err != nil && logger != nil {
-			logger.Warn("execenv: governance CLI shim not installed", "work_dir", workDir, "error", err)
-		}
 	}
 
 	logger.Info("execenv: prepared env", "root", envRoot, "repos_available", len(params.Task.Repos))

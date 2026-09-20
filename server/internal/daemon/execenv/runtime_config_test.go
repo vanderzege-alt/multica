@@ -196,7 +196,10 @@ func TestStatusRuleIsFactJudgmentAtBothMoments(t *testing.T) {
 		// No assignee gate: the judgment applies to whoever is running.
 		"whoever the assignee is",
 		// Delivery lands in in_review and the ceiling keeps `done` human.
-		"`done` stays human",
+		// S9a/S9b split: delivery children may close post-merge; feature/epic stays Founder-only.
+		"S9a — delivery child",
+		"Never @Founder to close a delivery child",
+		"S9b — feature/epic",
 		// Assigned deliverables must not be misread as status-neutral
 		// research: stage barriers and parent notifications key off the
 		// delivery write.

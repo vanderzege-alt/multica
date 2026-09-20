@@ -12,7 +12,7 @@ func TestInstallGovernanceCLIShim(t *testing.T) {
 	if err := os.WriteFile(real, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := InstallGovernanceCLIShim(workDir, real); err != nil {
+	if err := InstallGovernanceCLIShim(workDir, real, nil); err != nil {
 		t.Fatal(err)
 	}
 	shim := filepath.Join(workDir, ".multica", "bin", "multica")

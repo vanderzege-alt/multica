@@ -247,7 +247,7 @@ func TestRunIssueMetadataSetReturnsErrorOn404(t *testing.T) {
 
 	cmd := newIssueMetadataSetTestCmd()
 	_ = cmd.Flags().Set("key", "pr_url")
-	_ = cmd.Flags().Set("value", "https://example.com/pr/1")
+	_ = cmd.Flags().Set("value", "https://github.com/vanderzege-alt/multica/pull/1")
 	_ = cmd.Flags().Set("output", "json")
 
 	_, err := captureStdout(t, func() error {

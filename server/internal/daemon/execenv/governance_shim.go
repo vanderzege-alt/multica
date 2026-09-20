@@ -11,12 +11,14 @@ const governanceShimName = "multica"
 // InstallGovernanceCLIShim writes workDir/.multica/bin/multica that delegates to
 // the real multica binary. When multica-org-governance is checked out beside the
 // shim, multica-governed runs mechanical gates; otherwise the shim forwards directly.
-func InstallGovernanceCLIShim(workDir, realMulticaPath string) error {
+// When manifest is non-nil, record the shim so CleanupSidecars removes it before
+// worktree Finalize delivers the branch.
+func InstallGovernanceCLIShim(workDir, realMulticaPath string, manifest *sidecarManifest) error {
 	if workDir == "" || realMulticaPath == "" {
 		return nil
 	}
 	binDir := filepath.Join(workDir, ".multica", "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
+	if err := recordMkdirAll(binDir, 0o755, manifest); err != nil {
 		return fmt.Errorf("execenv: create governance bin dir: %w", err)
 	}
 	shimPath := filepath.Join(binDir, governanceShimName)
@@ -31,7 +33,7 @@ if [[ -x "$GOV_WRAPPER" ]]; then
 fi
 exec "$REAL_MULTICA" "$@"
 `, realMulticaPath, workDir)
-	if err := os.WriteFile(shimPath, []byte(script), 0o755); err != nil {
+	if err := recordWriteFile(shimPath, []byte(script), 0o755, manifest); err != nil {
 		return fmt.Errorf("execenv: write governance shim: %w", err)
 	}
 	return nil

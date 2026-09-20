@@ -3026,7 +3026,7 @@ func TestRunIssueStatusNoStartSendsSuppressRun(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/issues/MUL-1":
+		case r.Method == http.MethodGet && (r.URL.Path == "/api/issues/MUL-1" || r.URL.Path == "/api/issues/issue-1"):
 			json.NewEncoder(w).Encode(map[string]any{"id": "issue-1", "identifier": "MUL-1", "status": "backlog"})
 		case r.Method == http.MethodPut && r.URL.Path == "/api/issues/issue-1":
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

@@ -24,11 +24,15 @@ func TestParseWorkspaceHooks_ServerDefaults(t *testing.T) {
 	hooks := ParseWorkspaceHooks(nil, Config{Root: root, Timeout: 10 * time.Second})
 	wantComment := filepath.Join(root, defaultPreComment)
 	wantStatus := filepath.Join(root, defaultPreStatus)
+	wantCreate := filepath.Join(root, defaultPreIssueCreate)
 	if hooks.PreComment != wantComment {
 		t.Fatalf("PreComment = %q, want %q", hooks.PreComment, wantComment)
 	}
 	if hooks.PreStatus != wantStatus {
 		t.Fatalf("PreStatus = %q, want %q", hooks.PreStatus, wantStatus)
+	}
+	if hooks.PreIssueCreate != wantCreate {
+		t.Fatalf("PreIssueCreate = %q, want %q", hooks.PreIssueCreate, wantCreate)
 	}
 	if hooks.Timeout != 10*time.Second {
 		t.Fatalf("Timeout = %v, want 10s", hooks.Timeout)
@@ -37,7 +41,7 @@ func TestParseWorkspaceHooks_ServerDefaults(t *testing.T) {
 
 func TestParseWorkspaceHooks_NoConfigSkips(t *testing.T) {
 	hooks := ParseWorkspaceHooks([]byte(`{"foo":"bar"}`), Config{})
-	if hooks.PreComment != "" || hooks.PreStatus != "" {
+	if hooks.PreComment != "" || hooks.PreStatus != "" || hooks.PreIssueCreate != "" {
 		t.Fatalf("expected empty hooks, got %+v", hooks)
 	}
 }
@@ -105,5 +109,53 @@ func TestRunPreComment_TimeoutFailsClosed(t *testing.T) {
 func TestRunPreComment_UnconfiguredSkips(t *testing.T) {
 	if err := RunPreComment(context.Background(), WorkspaceHooks{}, nil, ""); err != nil {
 		t.Fatalf("unconfigured hook should skip: %v", err)
+	}
+}
+
+func TestRunPreIssueCreate_AllowAndDeny(t *testing.T) {
+	dir := t.TempDir()
+	allow := writeHook(t, dir, "allow.sh", "#!/usr/bin/env bash\nexit 0\n")
+	deny := writeHook(t, dir, "deny.sh", "#!/usr/bin/env bash\necho blocked by taxonomy gate >&2\nexit 1\n")
+
+	descFile := filepath.Join(dir, "description.md")
+	if err := os.WriteFile(descFile, []byte("## Acceptance Criteria\n- [ ] AC-1\n\n## Definition of Done\n- [ ] DoD-1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	args := []string{"--title", "impl(gov): test", "--description-file", descFile, "--status", "backlog"}
+	env := map[string]string{"MULTICA_DESCRIPTION_FILE": descFile}
+
+	if err := RunPreIssueCreate(ctx, WorkspaceHooks{PreIssueCreate: allow, Timeout: time.Second}, env, args); err != nil {
+		t.Fatalf("allow hook: %v", err)
+	}
+
+	err := RunPreIssueCreate(ctx, WorkspaceHooks{PreIssueCreate: deny, Timeout: time.Second}, env, args)
+	var denied *HookDeniedError
+	if !errors.As(err, &denied) {
+		t.Fatalf("deny hook: expected HookDeniedError, got %T: %v", err, err)
+	}
+	if !strings.Contains(denied.Stderr, "blocked by taxonomy gate") {
+		t.Fatalf("stderr = %q", denied.Stderr)
+	}
+}
+
+func TestRunPreIssueCreate_UnconfiguredSkips(t *testing.T) {
+	if err := RunPreIssueCreate(context.Background(), WorkspaceHooks{}, nil, []string{"--title", "x"}); err != nil {
+		t.Fatalf("unconfigured hook should skip: %v", err)
+	}
+}
+
+func TestRunPreIssueCreate_EmptyArgsFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	hook := writeHook(t, dir, "hook.sh", "#!/usr/bin/env bash\nexit 0\n")
+
+	err := RunPreIssueCreate(context.Background(), WorkspaceHooks{PreIssueCreate: hook, Timeout: time.Second}, nil, nil)
+	var failed *HookFailedError
+	if !errors.As(err, &failed) {
+		t.Fatalf("expected HookFailedError, got %T: %v", err, err)
+	}
+	if !strings.Contains(failed.Error(), "create arguments are required") {
+		t.Fatalf("error = %v", failed)
 	}
 }

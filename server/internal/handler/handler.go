@@ -153,8 +153,8 @@ type Config struct {
 	// individual hook paths; when unset, hooks are skipped unless configured
 	// per-workspace with absolute paths.
 	GovernanceRoot string
-	// GovernanceHookTimeout caps pre-comment / pre-status hook execution
-	// (MULTICA_GOVERNANCE_HOOK_TIMEOUT, default 30s). Hook timeout is
+	// GovernanceHookTimeout caps pre-comment / pre-status / pre-issue-create hook
+	// execution (MULTICA_GOVERNANCE_HOOK_TIMEOUT, default 30s). Hook timeout is
 	// fail-safe default-deny.
 	GovernanceHookTimeout time.Duration
 }

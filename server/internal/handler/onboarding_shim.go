@@ -236,6 +236,22 @@ func (h *Handler) BootstrapOnboardingRuntime(w http.ResponseWriter, r *http.Requ
 		}
 		assistantCreated = true
 	}
+	// This shim creates the persistent onboarding agent without passing through
+	// CreateAgent. Keep it on the same shared audit-skill invariant.
+	auditSkill, err := qtx.GetSkillByWorkspaceAndName(r.Context(), db.GetSkillByWorkspaceAndNameParams{
+		WorkspaceID: wsUUID,
+		Name:        "agent-session-audit",
+	})
+	if err != nil {
+		slog.Error("required agent-session-audit skill missing", append(logger.RequestAttrs(r), "workspace_id", req.WorkspaceID, "error", err)...)
+		writeError(w, http.StatusInternalServerError, "required workspace skill agent-session-audit is unavailable")
+		return
+	}
+	if err := qtx.AddAgentSkill(r.Context(), db.AddAgentSkillParams{AgentID: assistant.ID, SkillID: auditSkill.ID}); err != nil {
+		slog.Error("failed to bind agent-session-audit skill", append(logger.RequestAttrs(r), "agent_id", uuidToString(assistant.ID), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to attach required audit skill")
+		return
+	}
 
 	var emptyUUID pgtype.UUID
 	issue, foundIssue, err := issueguard.LockAndFindActiveDuplicate(

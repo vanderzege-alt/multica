@@ -1378,6 +1378,25 @@ func (h *Handler) CreateAgent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Every persistent user agent receives the workspace's shared audit skill.
+	// Copy clients already send source skill IDs through this endpoint; resolving
+	// by workspace/name also covers copies whose source predates the binding.
+	auditSkill, err := h.Queries.GetSkillByWorkspaceAndName(r.Context(), db.GetSkillByWorkspaceAndNameParams{
+		WorkspaceID: wsUUID,
+		Name:        "agent-session-audit",
+	})
+	if err != nil {
+		slog.Error("required agent-session-audit skill missing", append(logger.RequestAttrs(r), "workspace_id", workspaceID, "error", err)...)
+		writeError(w, http.StatusInternalServerError, "required workspace skill agent-session-audit is unavailable")
+		return
+	}
+	seenSkillIDs := make(map[string]struct{}, len(skillUUIDs)+1)
+	for _, skillID := range skillUUIDs {
+		seenSkillIDs[uuidToString(skillID)] = struct{}{}
+	}
+	if _, exists := seenSkillIDs[uuidToString(auditSkill.ID)]; !exists {
+		skillUUIDs = append(skillUUIDs, auditSkill.ID)
+	}
 	for _, skillID := range skillUUIDs {
 		if _, err := h.Queries.GetSkillInWorkspace(r.Context(), db.GetSkillInWorkspaceParams{
 			ID:          skillID,

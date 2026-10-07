@@ -130,6 +130,12 @@ func setupHandlerTestFixture(ctx context.Context, pool *pgxpool.Pool) (string, s
 	`, workspaceID, userID); err != nil {
 		return "", "", err
 	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO skill (workspace_id, name, description, content, created_by)
+		VALUES ($1, 'agent-session-audit', 'Shared session audit skill', 'synthetic test skill', $2)
+	`, workspaceID, userID); err != nil {
+		return "", "", err
+	}
 
 	var runtimeID string
 	if err := pool.QueryRow(ctx, `

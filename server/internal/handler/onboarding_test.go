@@ -284,6 +284,17 @@ func TestBootstrapOnboardingRuntimeCreatesSingleGuideIssue(t *testing.T) {
 	if avatarURL == nil || *avatarURL != onboardingAssistantAvatarURL {
 		t.Fatalf("agent avatar_url = %v, want seeded Multica Helper avatar", avatarURL)
 	}
+	var auditBindings int
+	if err := testPool.QueryRow(ctx, `
+		SELECT count(*) FROM agent_skill a_s
+		JOIN skill s ON s.id = a_s.skill_id
+		WHERE a_s.agent_id = $1 AND s.name = 'agent-session-audit'
+	`, resp.AgentID).Scan(&auditBindings); err != nil {
+		t.Fatalf("lookup onboarding assistant audit binding: %v", err)
+	}
+	if auditBindings != 1 {
+		t.Fatalf("onboarding assistant audit bindings = %d, want 1", auditBindings)
+	}
 
 	var (
 		issueTitle    string

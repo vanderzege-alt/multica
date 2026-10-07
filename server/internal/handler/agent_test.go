@@ -771,6 +771,37 @@ func TestCreateAgent_RejectsDuplicateName(t *testing.T) {
 	}
 }
 
+func TestCreateAgent_AutomaticallyAssignsSessionAuditSkill(t *testing.T) {
+	req := newRequest(http.MethodPost, "/api/agents", map[string]any{
+		"name":       "create-agent-audit-binding-test",
+		"runtime_id": handlerTestRuntimeID(t),
+	})
+	recorder := httptest.NewRecorder()
+	testHandler.CreateAgent(recorder, req)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("CreateAgent: expected 201, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var agent AgentResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&agent); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		testPool.Exec(context.Background(), `DELETE FROM agent WHERE id = $1`, agent.ID)
+	})
+
+	var count int
+	if err := testPool.QueryRow(context.Background(), `
+		SELECT count(*) FROM agent_skill a_s
+		JOIN skill s ON s.id = a_s.skill_id
+		WHERE a_s.agent_id = $1 AND s.workspace_id = $2 AND s.name = 'agent-session-audit'
+	`, agent.ID, testWorkspaceID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("agent-session-audit bindings = %d, want 1", count)
+	}
+}
+
 // TestUpdateAgent_RejectsRenameToArchivedName is the regression for #5914: the
 // (workspace_id, name) unique constraint does not exclude archived agents, so a
 // rename that collides with an *archived* agent's still-reserved name used to

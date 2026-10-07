@@ -1,0 +1,16 @@
+{
+  "schema_version": "1",
+  "name": "multica-session-finalization",
+  "version": "1.0.0",
+  "content_hash": "67c707a758d0421852ef570615f70e715b41ebd4b4e0a49a420a7ef9ec8fc0e8",
+  "planned_denominator": 1,
+  "cases": [
+    {
+      "id": "SESSION-REPORT-01",
+      "category": "lifecycle",
+      "expected_result": "NOT_OBSERVABLE",
+      "oracle": "A completed task has a verified audit report and linked evidence artifact",
+      "evidence_reference": "multica-session-audit://SESSION-REPORT-01"
+    }
+  ]
+}

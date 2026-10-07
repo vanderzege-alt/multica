@@ -80,6 +80,17 @@ func TestCreateAgentBuilderSessionCreatesIsolatedHiddenBuilder(t *testing.T) {
 	if firstModel != "builder-model-a" {
 		t.Fatalf("first builder model was mutated: got %q", firstModel)
 	}
+	var auditBindings int
+	if err := testPool.QueryRow(context.Background(), `
+		SELECT count(*) FROM agent_skill a_s
+		JOIN skill s ON s.id = a_s.skill_id
+		WHERE a_s.agent_id = $1 AND s.name = 'agent-session-audit'
+	`, first.BuilderAgentID).Scan(&auditBindings); err != nil {
+		t.Fatalf("count ephemeral builder audit bindings: %v", err)
+	}
+	if auditBindings != 0 {
+		t.Fatalf("ephemeral system builder has %d audit skill bindings, want 0", auditBindings)
+	}
 	var explicitlyCreated bool
 	if err := testPool.QueryRow(context.Background(), `
 		SELECT explicitly_created_at IS NOT NULL FROM chat_session WHERE id = $1
@@ -163,8 +174,16 @@ func TestCreateAgentAttachesSkillsWithoutCreatingAWelcomeChat(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(response.Skills) != 1 || response.Skills[0].ID != skillID {
-		t.Fatalf("create response did not include attached skill: %+v", response.Skills)
+	if len(response.Skills) != 2 {
+		t.Fatalf("create response has %d skills, want submitted skill plus audit skill: %+v", len(response.Skills), response.Skills)
+	}
+	var hasSubmitted, hasAudit bool
+	for _, skill := range response.Skills {
+		hasSubmitted = hasSubmitted || skill.ID == skillID
+		hasAudit = hasAudit || skill.Name == "agent-session-audit"
+	}
+	if !hasSubmitted || !hasAudit {
+		t.Fatalf("create response is missing a required binding: %+v", response.Skills)
 	}
 	var chatSessions int
 	if err := testPool.QueryRow(ctx, `

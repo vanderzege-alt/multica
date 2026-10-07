@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +45,9 @@ type TaskService struct {
 	Analytics analytics.Client
 	Metrics   *obsmetrics.BusinessMetrics
 	Wakeup    TaskWakeupNotifier
+	// SessionAudit runs the optional local, provider-neutral post-completion
+	// audit hook. It is nil unless explicitly enabled for a local build.
+	SessionAudit func(context.Context, db.AgentTaskQueue) error
 	// Entitlements supplies Cloud's workspace-scoped issue-count instruction.
 	// Nil keeps self-hosted and isolated test services unlimited.
 	Entitlements entitlement.Provider
@@ -328,7 +332,13 @@ func NewTaskService(q *db.Queries, tx TxStarter, hub *realtime.Hub, bus *events.
 	if len(wakeups) > 0 {
 		wakeup = wakeups[0]
 	}
-	return &TaskService{Queries: q, TxStarter: tx, Hub: hub, Bus: bus, Wakeup: wakeup}
+	svc := &TaskService{Queries: q, TxStarter: tx, Hub: hub, Bus: bus, Wakeup: wakeup}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_SESSION_AUDIT_ENABLED")), "true") {
+		svc.SessionAudit = func(ctx context.Context, task db.AgentTaskQueue) error {
+			return runLocalSessionAudit(ctx, q, task)
+		}
+	}
+	return svc
 }
 
 var trivialDoneMarkers = []string{
@@ -768,6 +778,17 @@ func (s *TaskService) captureTaskCompleted(ctx context.Context, task db.AgentTas
 	if s.Metrics != nil {
 		source, runtimeMode, _ := s.taskMetricsContext(ctx, task)
 		s.Metrics.RecordTaskTerminal(util.UUIDToString(task.ID), source, runtimeMode, task.Status, taskRunSeconds(task), taskTotalSeconds(task), task.Attempt)
+	}
+}
+
+func (s *TaskService) runSessionAudit(ctx context.Context, task db.AgentTaskQueue) {
+	if s.SessionAudit == nil || task.Status != "completed" {
+		return
+	}
+	if err := s.SessionAudit(ctx, task); err != nil {
+		// Audit failures do not undo the completed work. The local hook persists
+		// a REVIEW_REQUIRED marker; this log is the recovery signal for operators.
+		slog.Error("session audit hook failed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID), "error", err)
 	}
 }
 
@@ -4270,6 +4291,7 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 					"current_status", existing.Status,
 					"agent_id", util.UUIDToString(existing.AgentID),
 				)
+				s.runSessionAudit(ctx, existing)
 				return &existing, nil
 			}
 			slog.Warn("complete task failed",
@@ -4291,6 +4313,7 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 
 	slog.Info("task completed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID))
 	s.captureTaskCompleted(ctx, task)
+	s.runSessionAudit(ctx, task)
 
 	// Invariant: every completed issue task must have at least one agent
 	// comment on the issue, so the user always sees something when a run

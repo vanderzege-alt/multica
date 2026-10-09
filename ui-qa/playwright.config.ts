@@ -31,7 +31,7 @@ export default defineConfig({
     { name: "webkit-iphone", use: { ...devices["iPhone 13"], browserName: "webkit" } },
   ],
   webServer: {
-    command: "node ../scripts/ui-qa/preview.mjs",
+    command: `node ${resolve(process.cwd(), "scripts/ui-qa/preview.mjs")}`,
     url: `${baseURL}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -50,7 +50,7 @@ test("public marketing homepage emits screenshot, axe, and visual evidence", asy
   }
   testInfo.annotations.push({
     type: "ui-baseline-reference",
-    description: testInfo.snapshotPath("anonymous-login.png"),
+    description: testInfo.snapshotPath("homepage.png"),
   });
 
   const axe = await new AxeBuilder({ page })

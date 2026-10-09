@@ -27,7 +27,12 @@
     "check:ui-exports": "node scripts/check-ui-wildcard-exports.mjs",
     "clean": "turbo clean && rm -rf node_modules",
     "ui:add": "cd packages/ui && npx shadcn@latest add",
-    "generate:reserved-slugs": "node scripts/generate-reserved-slugs.mjs"
+    "generate:reserved-slugs": "node scripts/generate-reserved-slugs.mjs",
+    "ui:preview": "node scripts/ui-qa/preview.mjs",
+    "ui:screenshots": "node scripts/ui-qa/run.mjs ui:screenshots",
+    "ui:a11y": "node scripts/ui-qa/run.mjs ui:a11y",
+    "ui:visual": "node scripts/ui-qa/run.mjs ui:visual",
+    "ui:baseline:update": "node scripts/ui-qa/run.mjs ui:baseline:update"
   },
   "engines": {
     "node": ">=22"
@@ -53,7 +58,8 @@
     }
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.58.2",
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
     "knip": "^6.32.2",

@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "project": "AI Agents as Employees",
+  "repository": "https://github.com/vanderzege-alt/multica",
+  "commit": "3bae3cc16e3d1d3bb8b1dbfef942a30b4205df06",
+  "build": {
+    "id": "local-1791538002554",
+    "url": "http://127.0.0.1:3100",
+    "readiness": "PASS"
+  },
+  "adapter": {
+    "name": "playwright-web",
+    "version": "1.0.0"
+  },
+  "command": "ui:visual",
+  "runtime": {
+    "name": "node",
+    "version": "v25.8.0"
+  },
+  "os": {
+    "name": "darwin",
+    "version": "27.0.0",
+    "architecture": "arm64"
+  },
+  "browser": null,
+  "result": "PASS",
+  "checks": [
+    {
+      "capability": "ui:preview",
+      "status": "PASS"
+    },
+    {
+      "capability": "ui:screenshots",
+      "status": "PASS"
+    },
+    {
+      "capability": "ui:a11y",
+      "status": "PASS"
+    },
+    {
+      "capability": "ui:visual",
+      "status": "PASS"
+    }
+  ],
+  "targets": [
+    {
+      "route": "/login",
+      "state": "anonymous-login",
+      "browser": {
+        "name": "chromium",
+        "version": "145.0.7632.6"
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "device_scale_factor": 1
+      },
+      "device_profile": "chromium-desktop",
+      "baseline_reference": "ui-qa/web.spec.ts-snapshots/anonymous-login-chromium-desktop-darwin.png",
+      "result": "PASS",
+      "checks": [
+        {
+          "capability": "ui:screenshots",
+          "status": "PASS"
+        },
+        {
+          "capability": "ui:a11y",
+          "status": "PASS"
+        },
+        {
+          "capability": "ui:visual",
+          "status": "PASS"
+        }
+      ],
+      "artifacts": {
+        "screenshots": [
+          "ui-qa-artifacts/test-results/web-public-login-state-emi-cb304-hot-axe-and-visual-evidence-chromium-desktop/attachments/screenshot-32c49457fc676251d57e511025b52e0007e74a46.png"
+        ],
+        "diffs": [],
+        "reports": [
+          "ui-qa-artifacts/test-results/web-public-login-state-emi-cb304-hot-axe-and-visual-evidence-chromium-desktop/attachments/axe-report-38e8998589e295056a236da11749e9abb29d4d05.json"
+        ],
+        "logs": []
+      }
+    }
+  ],
+  "artifacts": {
+    "screenshots": [
+      "ui-qa-artifacts/test-results/web-public-login-state-emi-cb304-hot-axe-and-visual-evidence-chromium-desktop/attachments/screenshot-32c49457fc676251d57e511025b52e0007e74a46.png"
+    ],
+    "diffs": [],
+    "reports": [
+      "ui-qa-artifacts/html-report/index.html",
+      "ui-qa-artifacts/test-results/web-public-login-state-emi-cb304-hot-axe-and-visual-evidence-chromium-desktop/attachments/axe-report-38e8998589e295056a236da11749e9abb29d4d05.json"
+    ],
+    "logs": []
+  }
+}

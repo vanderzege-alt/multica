@@ -45,6 +45,9 @@ jobs:
           # over-matching since a missed path silently skips validation.
           filters: |
             frontend:
+              - 'ui-qa/**'
+              - 'scripts/ui-qa/**'
+              - '.github/workflows/ui-qa-baselines.yml'
               - 'apps/web/**'
               - 'apps/desktop/**'
               - 'apps/docs/**'
@@ -420,6 +423,50 @@ jobs:
         if: ${{ needs.changes.outputs.frontend == 'true' }}
         run: pnpm exec turbo test --filter='@multica/views' -- --shard=${{ matrix.index }}/${{ matrix.total }}
 
+  ui-qa:
+    needs: changes
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Setup Node.js
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Run portable UI preview, screenshot, accessibility, and visual checks
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
+        env:
+          UI_BUILD_ID: ${{ github.sha }}
+        run: pnpm ui:visual
+
+      - name: Upload portable UI QA evidence
+        if: ${{ always() && needs.changes.outputs.frontend == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-qa-${{ github.sha }}
+          path: ui-qa-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
   # Aggregate gate. `frontend` is the status-check name the repository's
   # branch rules refer to, so it has to survive the split above: this job
   # keeps reporting under that name and simply fails when any worker fails.
@@ -427,7 +474,7 @@ jobs:
   # staying pending) on PRs the path filter excluded — all workers succeed
   # trivially in that case because every step is gated off.
   frontend:
-    needs: [frontend-build, frontend-test, frontend-views-test]
+    needs: [frontend-build, frontend-test, frontend-views-test, ui-qa]
     # `!cancelled()` rather than `always()`: a run superseded by a newer push
     # is cancelled by the concurrency group above, and there is no reason to
     # spend a runner reporting a verdict nobody will read.
@@ -439,11 +486,13 @@ jobs:
           BUILD_RESULT: ${{ needs.frontend-build.result }}
           TEST_RESULT: ${{ needs.frontend-test.result }}
           VIEWS_TEST_RESULT: ${{ needs.frontend-views-test.result }}
+          UI_QA_RESULT: ${{ needs.ui-qa.result }}
         run: |
           echo "frontend-build: $BUILD_RESULT"
           echo "frontend-test:  $TEST_RESULT"
           echo "frontend-views-test: $VIEWS_TEST_RESULT"
-          if [ "$BUILD_RESULT" != "success" ] || [ "$TEST_RESULT" != "success" ] || [ "$VIEWS_TEST_RESULT" != "success" ]; then
+          echo "ui-qa:             $UI_QA_RESULT"
+          if [ "$BUILD_RESULT" != "success" ] || [ "$TEST_RESULT" != "success" ] || [ "$VIEWS_TEST_RESULT" != "success" ] || [ "$UI_QA_RESULT" != "success" ]; then
             echo "::error::frontend validation failed"
             exit 1
           fi

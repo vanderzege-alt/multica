@@ -52,6 +52,7 @@ test-results/
 apps/web/test-results/
 ui-qa-artifacts/test-results/
 ui-qa-artifacts/html-report/
+ui-qa-artifacts/manifest.json
 ui-qa/ui-qa-artifacts/
 ui-qa/web.spec.ts-snapshots/*-darwin.png
 

@@ -19,7 +19,9 @@ test("public login state emits screenshot, axe, and visual evidence", async ({ p
     request.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
   );
   await page.goto(route);
-  await expect(page.locator("body")).toBeVisible();
+  await expect(page.locator("#login-form")).toBeVisible();
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
   await page.mouse.move(-1, -1);
 
   const viewport = page.viewportSize();

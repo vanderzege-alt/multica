@@ -15,6 +15,7 @@ const child = spawn("pnpm", ["--filter", "@multica/web", "dev"], {
   shell: process.platform === "win32",
 });
 let stopping = false;
+let stopTimer;
 
 function signalChild(signal) {
   stopping = true;
@@ -28,10 +29,13 @@ function signalChild(signal) {
 }
 
 async function stopAndWait(signal = "SIGTERM") {
+  if (stopping) return;
   signalChild(signal);
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
-  await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 5_000))]);
-  if (child.exitCode === null && child.signalCode === null) signalChild("SIGKILL");
+  stopTimer = setTimeout(() => {
+    signalChild("SIGKILL");
+    process.exit(1);
+  }, 5_000);
 }
 
 async function waitUntilReady(timeoutMs = 120_000) {
@@ -71,6 +75,7 @@ async function writeReadiness() {
 process.on("SIGINT", () => void stopAndWait("SIGINT"));
 process.on("SIGTERM", () => void stopAndWait("SIGTERM"));
 child.once("exit", (code) => {
+  if (stopTimer) clearTimeout(stopTimer);
   if (!stopping) process.exitCode = code ?? 1;
 });
 

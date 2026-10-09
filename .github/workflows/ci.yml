@@ -455,7 +455,7 @@ jobs:
       - name: Run portable UI preview, screenshot, accessibility, and visual checks
         if: ${{ needs.changes.outputs.frontend == 'true' }}
         env:
-          UI_BUILD_ID: ${{ github.sha }}
+          UI_BUILD_ID: ${{ github.event.pull_request.head.sha || github.sha }}
           HOME: /root
         run: pnpm ui:visual
 

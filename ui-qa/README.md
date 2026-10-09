@@ -17,3 +17,5 @@ The `/` target asserts the public marketing headline and download action, mocks 
 ## Review and limits
 
 CI never updates snapshots. `.github/workflows/ui-qa-baselines.yml` is manual and uploads a proposal artifact; it does not commit files. Review actual/diff images and update baselines in a separate change. Axe checks only rendered DOM; activate other states and perform keyboard, focus, zoom, and screen-reader review separately. The iPhone project is browser emulation, not native iOS execution.
+
+Exact-color Linux baselines can exceed the repository's 300 KB bitmap budget because they preserve browser-rendered gradients and screenshot detail. In that case, document the specific visual-test necessity with an `Oversized image exemption:` line in the PR description; do not quantize snapshots because pixel changes can create false visual diffs.

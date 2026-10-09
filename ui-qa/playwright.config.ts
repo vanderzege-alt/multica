@@ -34,6 +34,7 @@ export default defineConfig({
     url: `${baseURL}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 8_000 },
     stdout: "pipe",
     stderr: "pipe",
   },

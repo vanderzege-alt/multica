@@ -80,7 +80,7 @@ export default class UiQaManifestReporter {
     };
     const overall = result.status === "passed" ? "PASS" : "FAIL";
     const artifactPaths = this.targets.flatMap((target) => Object.values(target.artifacts).flat());
-    const baseURL = process.env.UI_BASE_URL ?? "http://127.0.0.1:3100";
+    const baseURL = process.env.UI_BASE_URL ?? "http://localhost:3100";
     const manifest = {
       schema_version: "1.0.0",
       project: "AI Agents as Employees",

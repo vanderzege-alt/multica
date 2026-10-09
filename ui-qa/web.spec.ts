@@ -22,9 +22,13 @@ test("public marketing homepage emits screenshot, axe, and visual evidence", asy
     }
     return request.fulfill({ status: 200, contentType: "application/json", body: "{}" });
   });
+  const authResponsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/me");
   await page.goto(route, { waitUntil: "domcontentloaded" });
+  const authResponse = await authResponsePromise;
+  expect(authResponse.status()).toBe(401);
   await expect(page.getByRole("heading", { level: 1, name: /your next 10 hires/i })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: "Download Desktop", exact: true })).toBeVisible({ timeout: 15_000 });
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await page.locator('img[alt=""]').first().evaluate((image: HTMLImageElement) => image.decode());
   await page.getByRole("img", { name: /multica board view/i }).evaluate((image: HTMLImageElement) => image.decode());
   await page.mouse.move(-1, -1);

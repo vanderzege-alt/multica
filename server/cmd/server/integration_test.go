@@ -126,6 +126,13 @@ func setupIntegrationTestFixture(ctx context.Context, pool *pgxpool.Pool) (strin
 		return "", "", err
 	}
 
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO skill (workspace_id, name, description, content, config, created_by)
+		VALUES ($1, 'agent-session-audit', 'Shared session audit skill', 'synthetic test skill', '{}'::jsonb, $2)
+	`, workspaceID, userID); err != nil {
+		return "", "", err
+	}
+
 	// Owned by the fixture user, like every runtime a real daemon registers
 	// with a member credential: a private runtime is bindable only by its
 	// owner, so an ownerless one could not host the agents these tests create

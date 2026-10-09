@@ -551,7 +551,7 @@ function SkillsVisual() {
         <div className="w-[200px] shrink-0 border-r flex flex-col">
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-caption font-semibold">Skills</span>
-            <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-accent transition-colors">
+            <button type="button" aria-label="Add skill" className="rounded p-0.5 text-muted-foreground hover:bg-accent transition-colors">
               <Sparkles className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -910,7 +910,7 @@ function RuntimesVisual() {
               {/* Activity Heatmap — mirrors real ActivityHeatmap */}
               <div className="rounded-lg border p-3">
                 <h4 className="text-micro font-medium text-muted-foreground mb-2">Activity</h4>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" role="region" aria-label="Activity heatmap" tabIndex={0}>
                   <svg width={svgWidth} height={svgHeight} className="block">
                     {["", "Mon", "", "Wed", "", "Fri", ""].map((label, i) =>
                       label ? (

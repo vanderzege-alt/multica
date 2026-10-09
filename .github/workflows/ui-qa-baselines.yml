@@ -1,0 +1,58 @@
+name: Propose UI QA baselines
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch or commit to capture; generated images are artifacts for review and are never committed automatically.
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-qa-baselines-${{ inputs.source_ref }}
+  cancel-in-progress: true
+
+jobs:
+  propose:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    steps:
+      - name: Checkout requested source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate proposed baselines
+        env:
+          UI_BUILD_ID: ${{ github.sha }}
+          HOME: /root
+        run: pnpm ui:baseline:update
+
+      - name: Upload proposed baselines and run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-qa-baseline-proposal-${{ github.sha }}
+          path: |
+            ui-qa/web.spec.ts-snapshots/
+            ui-qa-artifacts/
+          if-no-files-found: warn
+          retention-days: 14

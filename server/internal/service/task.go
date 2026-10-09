@@ -335,7 +335,7 @@ func NewTaskService(q *db.Queries, tx TxStarter, hub *realtime.Hub, bus *events.
 	svc := &TaskService{Queries: q, TxStarter: tx, Hub: hub, Bus: bus, Wakeup: wakeup}
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_SESSION_AUDIT_ENABLED")), "true") {
 		svc.SessionAudit = func(ctx context.Context, task db.AgentTaskQueue) error {
-			return runLocalSessionAudit(ctx, q, task)
+			return runLocalSessionAudit(ctx, q, svc.Metrics, task)
 		}
 	}
 	return svc

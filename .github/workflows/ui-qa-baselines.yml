@@ -43,6 +43,7 @@ jobs:
       - name: Generate proposed baselines
         env:
           UI_BUILD_ID: ${{ github.sha }}
+          HOME: /root
         run: pnpm ui:baseline:update
 
       - name: Upload proposed baselines and run evidence

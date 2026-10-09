@@ -68,7 +68,7 @@ export default class UiQaManifestReporter {
   }
 
   async onEnd(result) {
-    const commit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const commit = process.env.UI_BUILD_ID ?? execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
     const statusesByCapability = (capability) => {
       const statuses = this.targets.flatMap((target) =>
         target.checks.filter((check) => check.capability === capability || check.capability === `ui:${capability}`).map((check) => check.status),

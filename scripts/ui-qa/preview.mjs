@@ -45,7 +45,7 @@ async function waitUntilReady(timeoutMs = 120_000) {
 }
 
 async function writeReadiness() {
-  const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const commit = process.env.UI_BUILD_ID ?? execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
   const payload = {
     project: "AI Agents as Employees",
     repository: "https://github.com/vanderzege-alt/multica",

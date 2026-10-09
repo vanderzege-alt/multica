@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
@@ -41,7 +42,7 @@ type localSessionAuditInput struct {
 	Matrix          json.RawMessage   `json:"matrix"`
 }
 
-func runLocalSessionAudit(ctx context.Context, queries *db.Queries, task db.AgentTaskQueue) error {
+func runLocalSessionAudit(ctx context.Context, queries *db.Queries, metrics *obsmetrics.BusinessMetrics, task db.AgentTaskQueue) error {
 	if !localSessionAuditEnabled() || task.Status != "completed" {
 		return nil
 	}
@@ -52,7 +53,11 @@ func runLocalSessionAudit(ctx context.Context, queries *db.Queries, task db.Agen
 	if agent.Kind != "user" {
 		return nil // ephemeral system execution carriers are not persistent workers
 	}
-	runtime, err := queries.GetAgentRuntime(ctx, task.RuntimeID)
+	runtime, err := (RuntimeLookup{
+		Queries: queries,
+		Metrics: metrics,
+		Source:  obsmetrics.RuntimeLookupSourceTask,
+	}).Get(ctx, task.RuntimeID)
 	if err != nil {
 		return fmt.Errorf("load audit runtime: %w", err)
 	}

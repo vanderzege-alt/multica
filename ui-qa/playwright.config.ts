@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
-const baseURL = process.env.UI_BASE_URL ?? "http://127.0.0.1:3100";
+const baseURL = process.env.UI_BASE_URL ?? "http://localhost:3100";
 
 export default defineConfig({
   testDir: ".",
@@ -12,7 +12,6 @@ export default defineConfig({
     [resolve(process.cwd(), "scripts/ui-qa/manifest-reporter.mjs"), { outputFile: "ui-qa-artifacts/manifest.json" }],
     ["html", { outputFolder: resolve(process.cwd(), "ui-qa-artifacts/html-report"), open: "never" }],
   ],
-  timeout: 120_000,
   use: {
     baseURL,
     headless: true,

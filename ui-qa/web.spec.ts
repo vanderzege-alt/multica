@@ -19,8 +19,8 @@ test("public marketing homepage emits screenshot, axe, and visual evidence", asy
     request.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
   );
   await page.goto(route, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { level: 1, name: /your next 10 hires/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Download Desktop", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /your next 10 hires/i })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("link", { name: "Download Desktop", exact: true })).toBeVisible({ timeout: 15_000 });
   await page.mouse.move(-1, -1);
 
   const viewport = page.viewportSize();

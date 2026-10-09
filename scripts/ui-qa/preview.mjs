@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const repoRoot = process.cwd();
-const baseURL = process.env.UI_BASE_URL ?? "http://127.0.0.1:3100";
+const baseURL = process.env.UI_BASE_URL ?? "http://localhost:3100";
 const port = process.env.FRONTEND_PORT ?? (new URL(baseURL).port || "3100");
 const readyURL = new URL("/", baseURL);
 const child = spawn("pnpm", ["--filter", "@multica/web", "dev"], {
@@ -16,7 +16,7 @@ const child = spawn("pnpm", ["--filter", "@multica/web", "dev"], {
 });
 let stopping = false;
 
-function stop(signal = "SIGTERM") {
+function signalChild(signal) {
   stopping = true;
   if (!child.pid) return;
   try {
@@ -25,6 +25,13 @@ function stop(signal = "SIGTERM") {
   } catch (error) {
     if (error.code !== "ESRCH") throw error;
   }
+}
+
+async function stopAndWait(signal = "SIGTERM") {
+  signalChild(signal);
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+  await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 5_000))]);
+  if (child.exitCode === null && child.signalCode === null) signalChild("SIGKILL");
 }
 
 async function waitUntilReady(timeoutMs = 120_000) {
@@ -61,8 +68,8 @@ async function writeReadiness() {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
 }
 
-process.on("SIGINT", () => stop("SIGINT"));
-process.on("SIGTERM", () => stop("SIGTERM"));
+process.on("SIGINT", () => void stopAndWait("SIGINT"));
+process.on("SIGTERM", () => void stopAndWait("SIGTERM"));
 child.once("exit", (code) => {
   if (!stopping) process.exitCode = code ?? 1;
 });
@@ -73,6 +80,6 @@ try {
   await new Promise((resolve) => child.once("exit", resolve));
 } catch (error) {
   process.stderr.write(`${error.message}\n`);
-  stop();
+  await stopAndWait();
   process.exitCode = 1;
 }

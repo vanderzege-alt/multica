@@ -32,7 +32,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "node ../scripts/ui-qa/preview.mjs",
-    url: `${baseURL}/login`,
+    url: `${baseURL}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     stdout: "pipe",

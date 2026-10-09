@@ -3,10 +3,10 @@ import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-const route = "/login";
-const state = "anonymous-login";
+const route = "/";
+const state = "public-marketing-homepage";
 
-test("public login state emits screenshot, axe, and visual evidence", async ({ page }, testInfo) => {
+test("public marketing homepage emits screenshot, axe, and visual evidence", async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
@@ -18,10 +18,9 @@ test("public login state emits screenshot, axe, and visual evidence", async ({ p
   await page.route(/\/(api|auth)\//, (request) =>
     request.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
   );
-  await page.goto(route);
-  await expect(page.locator("#login-form")).toBeVisible();
-  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
+  await page.goto(route, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1, name: /your next 10 hires/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Desktop", exact: true })).toBeVisible();
   await page.mouse.move(-1, -1);
 
   const viewport = page.viewportSize();
@@ -35,7 +34,7 @@ test("public login state emits screenshot, axe, and visual evidence", async ({ p
     description: testInfo.project.name,
   });
 
-  const screenshotPath = testInfo.outputPath("anonymous-login.png");
+  const screenshotPath = testInfo.outputPath("homepage.png");
   await mkdir(dirname(screenshotPath), { recursive: true });
   const screenshot = await page.screenshot({ path: screenshotPath, animations: "disabled" });
   await testInfo.attach("screenshot", { path: screenshotPath, contentType: "image/png" });
@@ -43,7 +42,7 @@ test("public login state emits screenshot, axe, and visual evidence", async ({ p
 
   let visualError: unknown;
   try {
-    await expect(page).toHaveScreenshot("anonymous-login.png", { animations: "disabled" });
+    await expect(page).toHaveScreenshot("homepage.png", { animations: "disabled" });
     testInfo.annotations.push({ type: "ui-check-visual", description: "PASS" });
   } catch (error) {
     visualError = error;

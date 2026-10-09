@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 const repoRoot = process.cwd();
 const baseURL = process.env.UI_BASE_URL ?? "http://127.0.0.1:3100";
 const port = process.env.FRONTEND_PORT ?? (new URL(baseURL).port || "3100");
-const readyURL = new URL("/login", baseURL);
+const readyURL = new URL("/", baseURL);
 const child = spawn("pnpm", ["--filter", "@multica/web", "dev"], {
   cwd: repoRoot,
   detached: process.platform !== "win32",

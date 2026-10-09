@@ -10,7 +10,7 @@ if (!supported.includes(command)) {
 
 const args = ["exec", "playwright", "test", "--config=ui-qa/playwright.config.ts"];
 if (command === "ui:screenshots" || command === "ui:a11y" || command === "ui:visual" || command === "ui:baseline:update") {
-  args.push("--grep=public login state", "--workers=1");
+  args.push("--grep=public marketing homepage", "--workers=1");
   if (process.platform !== "linux" && !process.env.UI_ALL_BROWSERS) args.push("--project=chromium-desktop");
 }
 if (command === "ui:baseline:update") args.push("--update-snapshots");
